@@ -3,11 +3,8 @@ const Form = require("@saltcorn/data/models/form");
 const User = require("@saltcorn/data/models/user");
 const { getState } = require("@saltcorn/data/db/state");
 const db = require("@saltcorn/data/db");
-const success = require("./success");
-const subscribe = require("./subscribe");
-const portal = require("./portal");
-const { upgrade_with_session_id } = require("./common");
-
+const fetch = require("node-fetch");
+const FormData = require("form-data");
 const configuration_workflow = () => {
   const cfg_base_url = getState().getConfig("base_url");
 
@@ -43,22 +40,49 @@ const configuration_workflow = () => {
 
 // user subscribe action
 const actions = ({ publishableKey, secretKey }) => ({
-  stripe_webhook: {
+  mauapay_paymeent_request: {
     configFields: async ({ table }) => {
       const fields = table ? await table.getFields() : [];
       return [
         {
           name: "order_id_field",
-          label: "amount_field",
+          label: "OrderID field",
           type: "String",
           required: true,
           attributes: {
             options: fields.map((f) => f.name),
           },
         },
+        {
+          name: "amount_field",
+          label: "Amount field",
+          type: "String",
+          required: true,
+          attributes: {
+            options: fields
+              .filter((f) => ["Float", "Integer"].f.type?.name)
+              .map((f) => f.name),
+          },
+        },
       ];
     },
-    run: async ({ req, body }) => {},
+    run: async ({
+      req,
+      row,
+      configuration: { order_id_field, amount_field },
+    }) => {
+      const form = new FormData();
+      form.append("orderID", row[order_id_field]);
+      form.append("amount", row[amount_field]);
+      const fres = await fetch("https://api.mauapay.com/api/v1/transactions", {
+        method: "post",
+        body: form,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "x-business-publishable-key": publishableKey,
+        },
+      });
+    },
   },
 });
 
