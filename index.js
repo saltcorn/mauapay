@@ -6,6 +6,7 @@ const { getState } = require("@saltcorn/data/db/state");
 const db = require("@saltcorn/data/db");
 const fetch = require("node-fetch");
 const FormData = require("form-data");
+const { createHash } = require("crypto");
 const configuration_workflow = () => {
   const cfg_base_url = getState().getConfig("base_url");
 
@@ -83,9 +84,23 @@ const actions = ({ publishableKey, secretKey }) => ({
       row,
       configuration: { order_id_field, amount_field, callback_view },
     }) => {
+      const cfg_base_url = getState().getConfig("base_url");
+      const cb_url = `${cfg_base_url}view/${callback_view}`;
+      const orderID = row[order_id_field];
+      const amount = row[amount_field];
+      const paymentService = "digicel";
+      const checkStr = `${orderID}:${amount}:${cb_url}:${cb_url}:${cb_url}:${cb_url}:${paymentService}:${secretKey}`;
+      const checksum = createHash("sha256").update(checkStr).digest("hex");
       const form = new FormData();
-      form.append("orderID", row[order_id_field]);
-      form.append("amount", row[amount_field]);
+      form.append("orderID", orderID);
+      form.append("amount", amount);
+      form.append("successURL", cb_url);
+      form.append("failureURL", cb_url);
+      form.append("processingURL", cb_url);
+      form.append("cancellationURL", cb_url);
+      form.append("paymentService", paymentService);
+      form.append("checksum", checksum);
+
       const fetchres = await fetch(
         "https://api.mauapay.com/api/v1/transactions",
         {
@@ -97,6 +112,7 @@ const actions = ({ publishableKey, secretKey }) => ({
           },
         }
       );
+      console.log("fetchres", fetchres);
     },
   },
 });
@@ -109,7 +125,7 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
       configuration_workflow: () => new Workflow({ steps: [] }),
       get_state_fields: () => [],
       run: async (table_id, viewname, view_cfg, state, { req }) => {
-        return "";
+        return "Hello from MauaPay Callback";
       },
     },
   ];
