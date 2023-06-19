@@ -4,8 +4,7 @@ const View = require("@saltcorn/data/models/view");
 const User = require("@saltcorn/data/models/user");
 const { getState } = require("@saltcorn/data/db/state");
 const db = require("@saltcorn/data/db");
-const fetch = require("node-fetch");
-const FormData = require("form-data");
+const axios = require("axios");
 const { createHash } = require("crypto");
 const configuration_workflow = () => {
   const cfg_base_url = getState().getConfig("base_url");
@@ -91,7 +90,7 @@ const actions = ({ publishableKey, secretKey }) => ({
       const paymentService = "digicel";
       const checkStr = `${orderID}:${amount}:${cb_url}:${cb_url}:${cb_url}:${cb_url}:${paymentService}:${secretKey}`;
       const checksum = createHash("sha256").update(checkStr).digest("hex");
-      const form = new FormData();
+      const form = new URLSearchParams({});
       form.append("orderID", orderID);
       form.append("amount", amount);
       form.append("successURL", cb_url);
@@ -100,19 +99,23 @@ const actions = ({ publishableKey, secretKey }) => ({
       form.append("cancellationURL", cb_url);
       form.append("paymentService", paymentService);
       form.append("checksum", checksum);
-
-      const fetchres = await fetch(
-        "https://api.mauapay.com/api/v1/transactions",
-        {
-          method: "post",
-          body: form,
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "x-business-publishable-key": publishableKey,
-          },
-        }
-      );
-      console.log("fetchres", fetchres);
+      try {
+        const fetchres = await axios.post(
+          "https://api.mauapay.com/api/v1/transactions",
+          form,
+          {
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              "x-business-publishable-key": publishableKey,
+            },
+          }
+        );
+        console.log("fetchres", fetchres);
+      } catch (e) {
+        console.error("checksum string", checkStr);
+        console.error("request configuration", e.config);
+        console.error("response data", e.response.data);
+      }
     },
   },
 });
