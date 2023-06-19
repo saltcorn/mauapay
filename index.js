@@ -42,7 +42,7 @@ const configuration_workflow = () => {
 
 // user subscribe action
 const actions = ({ publishableKey, secretKey }) => ({
-  mauapay_paymeent_request: {
+  mauapay_payment_request: {
     configFields: async ({ table }) => {
       const fields = table ? await table.getFields() : [];
       const cbviews = await View.find({ viewtemplate: "MauaPay Callback" });
@@ -64,7 +64,7 @@ const actions = ({ publishableKey, secretKey }) => ({
           required: true,
           attributes: {
             options: fields
-              .filter((f) => ["Float", "Integer"].f.type?.name)
+              .filter((f) => ["Float", "Integer"].includes(f.type?.name))
               .map((f) => f.name),
           },
         },
@@ -87,7 +87,7 @@ const actions = ({ publishableKey, secretKey }) => ({
       const cfg_base_url = getState().getConfig("base_url");
       const cb_url = `${cfg_base_url}view/${callback_view}`;
       const orderID = row[order_id_field];
-      const amount = row[amount_field];
+      const amount = row[amount_field].toFixed(2);
       const paymentService = "digicel";
       const checkStr = `${orderID}:${amount}:${cb_url}:${cb_url}:${cb_url}:${cb_url}:${paymentService}:${secretKey}`;
       const checksum = createHash("sha256").update(checkStr).digest("hex");
