@@ -5,7 +5,7 @@ const User = require("@saltcorn/data/models/user");
 const { getState } = require("@saltcorn/data/db/state");
 const db = require("@saltcorn/data/db");
 const axios = require("axios");
-const { createHash } = require("crypto");
+const { createHash, createHmac } = require("crypto");
 const configuration_workflow = () => {
   const cfg_base_url = getState().getConfig("base_url");
 
@@ -88,8 +88,10 @@ const actions = ({ publishableKey, secretKey }) => ({
       const orderID = row[order_id_field];
       const amount = row[amount_field].toFixed(2);
       const paymentService = "digicel";
-      const checkStr = `${orderID}:${amount}:${cb_url}:${cb_url}:${cb_url}:${cb_url}:${paymentService}:${secretKey}`;
-      const checksum = createHash("sha256").update(checkStr).digest("hex");
+      const checkStr = `${orderID}:${amount}:${cb_url}:${cb_url}:${cb_url}:${cb_url}:${paymentService}`;
+      const hmac = createHmac("sha256", secretKey);
+
+      const checksum = hmac.update(checkStr).digest("hex");
       const form = new URLSearchParams({});
       form.append("orderID", orderID);
       form.append("amount", amount);
