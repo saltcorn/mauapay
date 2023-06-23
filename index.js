@@ -89,9 +89,10 @@ const actions = ({ publishableKey, secretKey }) => ({
       const amount = row[amount_field].toFixed(2);
       const paymentService = "digicel";
       const checkStr = `${orderID}:${amount}:${cb_url}:${cb_url}:${cb_url}:${cb_url}:${paymentService}`;
-      const hmac = createHmac("sha256", secretKey);
 
-      const checksum = hmac.update(checkStr).digest("hex");
+      const checksum = createHmac("sha256", secretKey)
+        .update(checkStr)
+        .digest("hex");
       const form = new URLSearchParams({});
       form.append("orderID", orderID);
       form.append("amount", amount);
@@ -101,8 +102,9 @@ const actions = ({ publishableKey, secretKey }) => ({
       form.append("cancellationURL", cb_url);
       form.append("paymentService", paymentService);
       form.append("checksum", checksum);
+      form.append("settlementCurrency", "WST");
       try {
-        const fetchres = await axios.post(
+        const { data } = await axios.post(
           "https://api.mauapay.com/api/v1/transactions",
           form,
           {
@@ -112,12 +114,24 @@ const actions = ({ publishableKey, secretKey }) => ({
             },
           }
         );
-        console.log("fetchres", fetchres);
+        console.log("fetchres", data);
+        const need_response_checksum = createHmac("sha256", secretKey)
+          .update(`${data.token}:${data.referenceID}`)
+          .digest("hex");
+        if (data.checksum !== need_response_checksum) {
+          console.error("checksum mismatch", need_response_checksum);
+          return { error: "Payment integration response not verified" };
+        }
+
+        return {
+          goto: `https://www.mauapay.com/?token=${data.token}`,
+        };
       } catch (e) {
+        console.error(e);
         console.error("checksum string", checkStr);
         console.error("request configuration", e.config);
-        console.error("response data", e.response.data);
-        return { error: e.response.data.message };
+        console.error("response data", e.response?.data);
+        return { error: e.response?.data?.message || e.message };
       }
     },
   },
