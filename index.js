@@ -117,6 +117,7 @@ const actions = ({ publishableKey, secretKey }) => ({
         console.error("checksum string", checkStr);
         console.error("request configuration", e.config);
         console.error("response data", e.response.data);
+        return { error: e.response.data.message };
       }
     },
   },
