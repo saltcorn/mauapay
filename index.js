@@ -168,8 +168,10 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
           steps: [
             {
               name: "Callback configuration",
+              disablePreview: true,
               form: async (context) => {
                 const table = Table.findOne({ id: context.table_id });
+                const views = await View.find({ table_id: table.id });
                 return new Form({
                   fields: [
                     {
@@ -207,6 +209,50 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
                           .map((f) => f.name),
                       },
                     },
+                    {
+                      name: "success_view",
+                      label: "Success view",
+                      type: "String",
+                      required: true,
+                      attributes: {
+                        options: views
+                          .filter((v) => v.name !== context.viewname)
+                          .map((v) => v.name),
+                      },
+                    },
+                    {
+                      name: "cancelled_view",
+                      label: "Cancelled view",
+                      type: "String",
+                      required: true,
+                      attributes: {
+                        options: views
+                          .filter((v) => v.name !== context.viewname)
+                          .map((v) => v.name),
+                      },
+                    },
+                    {
+                      name: "failure_view",
+                      label: "Failure view",
+                      type: "String",
+                      required: true,
+                      attributes: {
+                        options: views
+                          .filter((v) => v.name !== context.viewname)
+                          .map((v) => v.name),
+                      },
+                    },
+                    {
+                      name: "processing_view",
+                      label: "Processing view",
+                      type: "String",
+                      required: true,
+                      attributes: {
+                        options: views
+                          .filter((v) => v.name !== context.viewname)
+                          .map((v) => v.name),
+                      },
+                    },
                   ],
                 });
               },
@@ -217,9 +263,9 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
       run: async (
         table_id,
         viewname,
-        { reference_id_field, paid_field, status_field },
+        { reference_id_field, paid_field, status_field, cancelled_view },
         state,
-        { req }
+        { req, res }
       ) => {
         console.log("state", state);
         const checkStr = `${state.token}:${state.referenceID}:${state.status}`;
@@ -237,8 +283,19 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
         const upd = {};
         if (status_field) upd[status_field] = state.status;
         if (paid_field && state.status === "paid") upd[paid_field] = true;
-        if (Object.keys(upd).length > 0) await table.updateRow(upd, row.id);
+        if (Object.keys(upd).length > 0)
+          await table.updateRow(upd, row[table.pk_name]);
 
+        switch (state.status) {
+          case "cancelled":
+            res.redirect(
+              `/view/${cancelled_view}?${table.pk_name}=${row[table.pk_name]}`
+            );
+            return;
+
+          default:
+            break;
+        }
         return "Hello from MauaPay Callback";
       },
     },
