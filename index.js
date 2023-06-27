@@ -124,7 +124,7 @@ const actions = ({ publishableKey, secretKey }) => ({
         }
 
         return {
-          goto: `https://www.mauapay.com/?token=${data.token}`,
+          goto: `https://www.mauapay.com/end-point?token=${data.token}`,
         };
       } catch (e) {
         console.error(e);
@@ -145,6 +145,15 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
       configuration_workflow: () => new Workflow({ steps: [] }),
       get_state_fields: () => [],
       run: async (table_id, viewname, view_cfg, state, { req }) => {
+        console.log("state", state);
+        const checkStr = `${state.token}:${state.referenceID}:${state.status}`;
+        const need_response_checksum = createHmac("sha256", secretKey)
+          .update(checkStr)
+          .digest("hex");
+        if (state.checksum !== need_response_checksum) {
+          console.error("checksum mismatch", need_response_checksum, checkStr);
+          return "Payment integration response not verified";
+        }
         return "Hello from MauaPay Callback";
       },
     },
