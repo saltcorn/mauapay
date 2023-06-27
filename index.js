@@ -1,5 +1,6 @@
 const Workflow = require("@saltcorn/data/models/workflow");
 const Form = require("@saltcorn/data/models/form");
+const Table = require("@saltcorn/data/models/table");
 const View = require("@saltcorn/data/models/view");
 const User = require("@saltcorn/data/models/user");
 const { getState } = require("@saltcorn/data/db/state");
@@ -55,7 +56,18 @@ const actions = ({ publishableKey, secretKey }) => ({
             options: fields.map((f) => f.name),
           },
         },
-
+        {
+          name: "reference_id_field",
+          label: "Reference ID field",
+          type: "String",
+          sublabel: "A String field. Will be filled by Mauapay transaction",
+          required: true,
+          attributes: {
+            options: fields
+              .filter((f) => f.type?.name === "String")
+              .map((f) => f.name),
+          },
+        },
         {
           name: "amount_field",
           label: "Amount field",
@@ -79,9 +91,15 @@ const actions = ({ publishableKey, secretKey }) => ({
       ];
     },
     run: async ({
+      table,
       req,
       row,
-      configuration: { order_id_field, amount_field, callback_view },
+      configuration: {
+        order_id_field,
+        amount_field,
+        callback_view,
+        reference_id_field,
+      },
     }) => {
       const cfg_base_url = getState().getConfig("base_url");
       const cb_url = `${cfg_base_url}view/${callback_view}`;
@@ -122,7 +140,10 @@ const actions = ({ publishableKey, secretKey }) => ({
           console.error("checksum mismatch", need_response_checksum);
           return { error: "Payment integration response not verified" };
         }
-
+        await table.updateRow(
+          { [reference_id_field]: data.referenceID },
+          row.id
+        );
         return {
           goto: `https://www.mauapay.com/end-point?token=${data.token}`,
         };
@@ -142,9 +163,64 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
     {
       name: "MauaPay Callback",
       display_state_form: false,
-      configuration_workflow: () => new Workflow({ steps: [] }),
+      configuration_workflow: () =>
+        new Workflow({
+          steps: [
+            {
+              name: "Callback configuration",
+              form: async (context) => {
+                const table = Table.findOne({ id: context.table_id });
+                return new Form({
+                  fields: [
+                    {
+                      name: "reference_id_field",
+                      label: "Reference ID field",
+                      type: "String",
+                      required: true,
+                      attributes: {
+                        options: table.fields
+                          .filter((f) => f.type?.name === "String")
+                          .map((f) => f.name),
+                      },
+                    },
+                    {
+                      name: "paid_field",
+                      label: "Paid field",
+                      type: "String",
+                      sublabel:
+                        "Optionally, a Boolean field that will be set to true if paid",
+                      attributes: {
+                        options: table.fields
+                          .filter((f) => f.type?.name === "Bool")
+                          .map((f) => f.name),
+                      },
+                    },
+                    {
+                      name: "status_field",
+                      label: "Status field",
+                      type: "String",
+                      sublabel:
+                        "Optionally, a String field that will be set to status: cancelled, paid, failed, processing",
+                      attributes: {
+                        options: table.fields
+                          .filter((f) => f.type?.name === "String")
+                          .map((f) => f.name),
+                      },
+                    },
+                  ],
+                });
+              },
+            },
+          ],
+        }),
       get_state_fields: () => [],
-      run: async (table_id, viewname, view_cfg, state, { req }) => {
+      run: async (
+        table_id,
+        viewname,
+        { reference_id_field, paid_field, status_field },
+        state,
+        { req }
+      ) => {
         console.log("state", state);
         const checkStr = `${state.token}:${state.referenceID}:${state.status}`;
         const need_response_checksum = createHmac("sha256", secretKey)
@@ -154,6 +230,15 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
           console.error("checksum mismatch", need_response_checksum, checkStr);
           return "Payment integration response not verified";
         }
+        const table = Table.findOne({ id: table_id });
+        const row = await table.getRow({
+          [reference_id_field]: state.referenceID,
+        });
+        const upd = {};
+        if (status_field) upd[status_field] = state.status;
+        if (paid_field && state.status === "paid") upd[paid_field] = true;
+        if (Object.keys(upd).length > 0) await table.updateRow(upd, row.id);
+
         return "Hello from MauaPay Callback";
       },
     },
