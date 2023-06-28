@@ -3,8 +3,8 @@ const Form = require("@saltcorn/data/models/form");
 const Table = require("@saltcorn/data/models/table");
 const View = require("@saltcorn/data/models/view");
 const User = require("@saltcorn/data/models/user");
-const { getState } = require("@saltcorn/data/db/state");
-const db = require("@saltcorn/data/db");
+const { getState, features } = require("@saltcorn/data/db/state");
+
 const axios = require("axios");
 const { createHash, createHmac } = require("crypto");
 const configuration_workflow = () => {
@@ -288,11 +288,16 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
 
         switch (state.status) {
           case "cancelled":
-            return {
-              goto: `/view/${cancelled_view}?${table.pk_name}=${
-                row[table.pk_name]
-              }`,
-            };
+            if (features?.get_view_goto)
+              return {
+                goto: `/view/${cancelled_view}?${table.pk_name}=${
+                  row[table.pk_name]
+                }`,
+              };
+            res.redirect(
+              `/view/${cancelled_view}?${table.pk_name}=${row[table.pk_name]}`
+            );
+            return;
 
           default:
             break;
