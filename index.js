@@ -263,7 +263,15 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
       run: async (
         table_id,
         viewname,
-        { reference_id_field, paid_field, status_field, cancelled_view },
+        {
+          reference_id_field,
+          paid_field,
+          status_field,
+          cancelled_view,
+          success_view,
+          processing_view,
+          failure_view,
+        },
         state,
         { req, res }
       ) => {
@@ -286,11 +294,13 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
         if (paid_field && state.status === "paid") upd[paid_field] = true;
         if (Object.keys(upd).length > 0)
           await table.updateRow(upd, row[table.pk_name]);
+        const pk = table.pk_name;
 
         const dest_url = {
-          cancelled: `/view/${cancelled_view}?${table.pk_name}=${
-            row[table.pk_name]
-          }`,
+          cancelled: `/view/${cancelled_view}?${pk}=${row[pk]}`,
+          paid: `/view/${success_view}?${pk}=${row[pk]}`,
+          failure: `/view/${failure_view}?${pk}=${row[pk]}`,
+          processing: `/view/${processing_view}?${pk}=${row[pk]}`,
         }[state.status];
 
         if (!dest_url) return "Unknown status: " + state.status;
