@@ -276,6 +276,7 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
           console.error("checksum mismatch", need_response_checksum, checkStr);
           return "Payment integration response not verified";
         }
+
         const table = Table.findOne({ id: table_id });
         const row = await table.getRow({
           [reference_id_field]: state.referenceID,
@@ -286,23 +287,20 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
         if (Object.keys(upd).length > 0)
           await table.updateRow(upd, row[table.pk_name]);
 
-        switch (state.status) {
-          case "cancelled":
-            if (features?.get_view_goto)
-              return {
-                goto: `/view/${cancelled_view}?${table.pk_name}=${
-                  row[table.pk_name]
-                }`,
-              };
-            res.redirect(
-              `/view/${cancelled_view}?${table.pk_name}=${row[table.pk_name]}`
-            );
-            return;
+        const dest_url = {
+          cancelled: `/view/${cancelled_view}?${table.pk_name}=${
+            row[table.pk_name]
+          }`,
+        }[state.status];
 
-          default:
-            break;
-        }
-        return "Hello from MauaPay Callback";
+        if (!dest_url) return "Unknown status: " + state.status;
+
+        if (features?.get_view_goto)
+          return {
+            goto: dest_url,
+          };
+        res.redirect(dest_url);
+        return;
       },
     },
   ];
