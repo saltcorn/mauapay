@@ -288,10 +288,11 @@ const viewtemplates = ({ publishableKey, secretKey }) => {
 
         switch (state.status) {
           case "cancelled":
-            res.redirect(
-              `/view/${cancelled_view}?${table.pk_name}=${row[table.pk_name]}`
-            );
-            return;
+            return {
+              goto: `/view/${cancelled_view}?${table.pk_name}=${
+                row[table.pk_name]
+              }`,
+            };
 
           default:
             break;
