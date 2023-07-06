@@ -140,17 +140,16 @@ const actions = ({ publishableKey, secretKey }) => ({
       form.append("paymentService", paymentService);
       form.append("checksum", checksum);
       form.append("settlementCurrency", "WST");
-      console.log("mauapay form", form);
+      const headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "x-business-publishable-key": publishableKey,
+      };
+      console.log("mauapay form", form, headers);
       try {
         const { data } = await axios.post(
           "https://api.mauapay.com/api/v1/transactions",
           form,
-          {
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              "x-business-publishable-key": publishableKey,
-            },
-          }
+          { headers }
         );
         console.log("fetchres", data);
         const need_response_checksum = createHmac("sha256", secretKey)
