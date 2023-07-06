@@ -46,6 +46,18 @@ const actions = ({ publishableKey, secretKey }) => ({
     configFields: async ({ table }) => {
       const fields = table ? await table.getFields() : [];
       const cbviews = await View.find({ viewtemplate: "MauaPay Callback" });
+      const amount_options = fields
+        .filter((f) => ["Float", "Integer"].includes(f.type?.name))
+        .map((f) => f.name);
+      for (const field of fields) {
+        if (field.is_fkey) {
+          Table.findOne({
+            name: field.reftable_name,
+          })
+            .fields.filter((f) => ["Float", "Integer"].includes(f.type?.name))
+            .forEach((f) => amount_options.push(`${field.name}.${f.name}`));
+        }
+      }
       return [
         {
           name: "order_id_field",
@@ -74,9 +86,7 @@ const actions = ({ publishableKey, secretKey }) => ({
           type: "String",
           required: true,
           attributes: {
-            options: fields
-              .filter((f) => ["Float", "Integer"].includes(f.type?.name))
-              .map((f) => f.name),
+            options: amount_options,
           },
         },
         {
@@ -104,7 +114,16 @@ const actions = ({ publishableKey, secretKey }) => ({
       const cfg_base_url = getState().getConfig("base_url");
       const cb_url = `${cfg_base_url}view/${callback_view}`;
       const orderID = row[order_id_field];
-      const amount = row[amount_field].toFixed(2);
+      let amount;
+      if (amount_field.includes(".")) {
+        const amt_fk_field = table.getField(amount_field);
+        const amt_table = Table.findOne(amt_fk_field.table_id);
+        const amt_row = await amt_table.getRow({
+          [amt_table.pk_name]: row[amount_field.split(".")[0]],
+        });
+        amount = amt_row[amt_fk_field.name].toFixed(2);
+      } else amount = row[amount_field].toFixed(2);
+
       const paymentService = "digicel";
       const checkStr = `${orderID}:${amount}:${cb_url}:${cb_url}:${cb_url}:${cb_url}:${paymentService}`;
 
@@ -121,6 +140,7 @@ const actions = ({ publishableKey, secretKey }) => ({
       form.append("paymentService", paymentService);
       form.append("checksum", checksum);
       form.append("settlementCurrency", "WST");
+      console.log("mauapay form", form);
       try {
         const { data } = await axios.post(
           "https://api.mauapay.com/api/v1/transactions",
