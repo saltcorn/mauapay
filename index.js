@@ -146,11 +146,12 @@ const actions = ({ publishableKey, secretKey }) => ({
       };
       console.log("mauapay form", form, headers);
       try {
-        const { data } = await axios.post(
-          "https://api.mauapay.com/api/v1/transactions",
-          form,
-          { headers }
-        );
+        const { data } = await axios({
+          method: "post",
+          url: "https://api.mauapay.com/api/v1/transactions",
+          data: form,
+          headers,
+        });
         console.log("fetchres", data);
         const need_response_checksum = createHmac("sha256", secretKey)
           .update(`${data.token}:${data.referenceID}`)

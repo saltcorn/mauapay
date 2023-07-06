@@ -1,6 +1,6 @@
 {
   "name": "@saltcorn/mauapay",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Payment processing with Mauapay",
   "main": "index.js",
   "dependencies": {
