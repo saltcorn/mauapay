@@ -90,6 +90,15 @@ const actions = ({ publishableKey, secretKey }) => ({
           },
         },
         {
+          name: "payment_service",
+          label: "Payment Service",
+          type: "String",
+          required: true,
+          attributes: {
+            options: ["digicel", "vodafone"],
+          },
+        },
+        {
           name: "callback_view",
           label: "Callback view",
           type: "String",
