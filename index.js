@@ -157,7 +157,9 @@ const actions = ({ publishableKey, secretKey }) => ({
           )[0];
         else row_eval = row;
 
-        amount = eval_expression(amount_formula, row_eval, req?.user);
+        amount = eval_expression(amount_formula, row_eval, req?.user).toFixed(
+          2
+        );
       } else if (amount_field.includes(".")) {
         const amt_fk_field = table.getField(amount_field);
         const amt_table = Table.findOne(amt_fk_field.table_id);
