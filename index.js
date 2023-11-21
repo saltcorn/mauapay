@@ -3,6 +3,11 @@ const Form = require("@saltcorn/data/models/form");
 const Table = require("@saltcorn/data/models/table");
 const View = require("@saltcorn/data/models/view");
 const User = require("@saltcorn/data/models/user");
+const {
+  eval_expression,
+  add_free_variables_to_joinfields,
+  freeVariables,
+} = require("@saltcorn/data/models/expression");
 const { getState, features } = require("@saltcorn/data/db/state");
 
 const axios = require("axios");
@@ -58,6 +63,7 @@ const actions = ({ publishableKey, secretKey }) => ({
             .forEach((f) => amount_options.push(`${field.name}.${f.name}`));
         }
       }
+      amount_options.push("Formula");
       return [
         {
           name: "order_id_field",
@@ -90,6 +96,15 @@ const actions = ({ publishableKey, secretKey }) => ({
           },
         },
         {
+          name: "amount_formula",
+          label: "Amount formula",
+          type: "String",
+          required: true,
+          fieldview: "textarea",
+          class: "validate-expression",
+          showIf: { amount_field: "Formula" },
+        },
+        {
           name: "payment_service",
           label: "Payment Service",
           type: "String",
@@ -116,6 +131,7 @@ const actions = ({ publishableKey, secretKey }) => ({
       configuration: {
         order_id_field,
         amount_field,
+        amount_formula,
         callback_view,
         reference_id_field,
       },
@@ -124,7 +140,25 @@ const actions = ({ publishableKey, secretKey }) => ({
       const cb_url = `${cfg_base_url}view/${callback_view}`;
       const orderID = row[order_id_field];
       let amount;
-      if (amount_field.includes(".")) {
+      if (amount_field === "Formula") {
+        const joinFields = {};
+        add_free_variables_to_joinfields(
+          freeVariables(amount_formula),
+          joinFields,
+          table.fields
+        );
+        let row_eval;
+        if (Object.keys(joinFields).length > 0)
+          row_eval = (
+            await table.getJoinedRows({
+              where: { id: row.id },
+              joinFields,
+            })
+          )[0];
+        else row_eval = row;
+
+        amount = eval_expression(amount_formula, row_eval, req?.user);
+      } else if (amount_field.includes(".")) {
         const amt_fk_field = table.getField(amount_field);
         const amt_table = Table.findOne(amt_fk_field.table_id);
         const amt_row = await amt_table.getRow({
