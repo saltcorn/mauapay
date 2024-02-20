@@ -105,6 +105,15 @@ const actions = ({ publishableKey, secretKey }) => ({
           showIf: { amount_field: "Formula" },
         },
         {
+          name: "currency",
+          label: "Currency",
+          type: "String",
+          required: true,
+          attributes: {
+            options: ["WST", "AUD", "NZD", "USD"],
+          },
+        },
+        {
           name: "payment_service",
           label: "Payment Service",
           type: "String",
@@ -134,6 +143,7 @@ const actions = ({ publishableKey, secretKey }) => ({
         amount_formula,
         callback_view,
         reference_id_field,
+        currency,
       },
     }) => {
       const cfg_base_url = getState().getConfig("base_url");
@@ -184,8 +194,8 @@ const actions = ({ publishableKey, secretKey }) => ({
       form.append("cancellationURL", cb_url);
       form.append("paymentService", paymentService);
       form.append("checksum", checksum);
-      form.append("settlementCurrency", "WST");
-      form.append("currency", "WST");
+      form.append("settlementCurrency", currency || "WST");
+      form.append("currency", currency || "WST");
       const headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "x-business-publishable-key": publishableKey,
