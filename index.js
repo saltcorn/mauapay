@@ -185,6 +185,7 @@ const actions = ({ publishableKey, secretKey }) => ({
       form.append("paymentService", paymentService);
       form.append("checksum", checksum);
       form.append("settlementCurrency", "WST");
+      form.append("currency", "WST");
       const headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "x-business-publishable-key": publishableKey,
