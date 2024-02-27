@@ -105,6 +105,13 @@ const actions = ({ publishableKey, secretKey }) => ({
           showIf: { amount_field: "Formula" },
         },
         {
+          name: "skip_if",
+          label: "Skip if",
+          sublabel: "Do not process payment if this formula evaluates to true",
+          type: "String",
+          class: "validate-expression",
+        },
+        {
           name: "currency",
           label: "Currency",
           type: "String",
@@ -136,6 +143,7 @@ const actions = ({ publishableKey, secretKey }) => ({
     run: async ({
       table,
       req,
+      user,
       row,
       configuration: {
         order_id_field,
@@ -144,11 +152,22 @@ const actions = ({ publishableKey, secretKey }) => ({
         callback_view,
         reference_id_field,
         currency,
+        skip_if,
       },
     }) => {
+      if (skip_if && eval_expression(skip_if, row, user || req?.user))
+        return {};
       const cfg_base_url = getState().getConfig("base_url");
       const cb_url = `${cfg_base_url}view/${callback_view}`;
       const orderID = row[order_id_field];
+      console.log({
+        amount_field,
+        amount_formula,
+        callback_view,
+        reference_id_field,
+        currency,
+        row,
+      });
       let amount;
       if (amount_field === "Formula") {
         const joinFields = {};
@@ -186,6 +205,7 @@ const actions = ({ publishableKey, secretKey }) => ({
         .update(checkStr)
         .digest("hex");
       const form = new URLSearchParams({});
+      console.log({ cb_url });
       form.append("orderID", orderID);
       form.append("amount", amount);
       form.append("successURL", cb_url);
